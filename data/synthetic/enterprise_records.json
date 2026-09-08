@@ -1,0 +1,65 @@
+{
+  "cases": {
+    "CLM-1001": {
+      "case_id": "CLM-1001",
+      "tenant_id": "NORTHSTAR_CA",
+      "policy_id": "POL-100",
+      "claim_type": "extended_health",
+      "amount_cad": 1250,
+      "province": "QC",
+      "language": "fr-CA",
+      "claimant_name": "SYNTHETIC ALICE MARTIN",
+      "claimant_email": "alice.synthetic@example.invalid",
+      "documents": ["receipt", "proof_of_loss"],
+      "required_documents": ["receipt", "proof_of_loss"]
+    },
+    "CLM-1002": {
+      "case_id": "CLM-1002",
+      "tenant_id": "NORTHSTAR_CA",
+      "policy_id": "POL-200",
+      "claim_type": "disability",
+      "amount_cad": 25000,
+      "province": "ON",
+      "language": "en-CA",
+      "claimant_name": "SYNTHETIC JAMIE CHEN",
+      "claimant_email": "jamie.synthetic@example.invalid",
+      "documents": ["proof_of_loss"],
+      "required_documents": ["proof_of_loss", "attending_physician_statement"]
+    },
+    "CLM-OTHER": {
+      "case_id": "CLM-OTHER",
+      "tenant_id": "OTHER_CO",
+      "policy_id": "POL-OTHER",
+      "claim_type": "dental",
+      "amount_cad": 300,
+      "province": "BC",
+      "language": "en-CA",
+      "documents": ["receipt"],
+      "required_documents": ["receipt"]
+    }
+  },
+  "policies": {
+    "POL-100": {
+      "policy_id": "POL-100",
+      "tenant_id": "NORTHSTAR_CA",
+      "status": "active",
+      "coverage_type": "extended_health",
+      "effective_date": "2026-01-01"
+    },
+    "POL-200": {
+      "policy_id": "POL-200",
+      "tenant_id": "NORTHSTAR_CA",
+      "status": "active",
+      "coverage_type": "disability",
+      "effective_date": "2025-06-01"
+    },
+    "POL-OTHER": {
+      "policy_id": "POL-OTHER",
+      "tenant_id": "OTHER_CO",
+      "status": "active",
+      "coverage_type": "dental",
+      "effective_date": "2026-01-01"
+    }
+  }
+}
+

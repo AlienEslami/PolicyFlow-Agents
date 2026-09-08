@@ -1,0 +1,54 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: PolicyFlow ECR bootstrap resources.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: policyflow-agents
+    AllowedPattern: "[a-z0-9-]+"
+  EnvironmentName:
+    Type: String
+    Default: prod
+    AllowedPattern: "[a-z0-9-]+"
+
+Resources:
+  Repository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub "${ProjectName}-${EnvironmentName}"
+      EmptyOnDelete: true
+      EncryptionConfiguration:
+        EncryptionType: AES256
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      ImageTagMutability: IMMUTABLE
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Keep the ten newest release images",
+                "selection": {
+                  "tagStatus": "any",
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 10
+                },
+                "action": {"type": "expire"}
+              }
+            ]
+          }
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref EnvironmentName
+
+Outputs:
+  RepositoryName:
+    Value: !Ref Repository
+  RepositoryArn:
+    Value: !GetAtt Repository.Arn
+  RepositoryUri:
+    Value: !GetAtt Repository.RepositoryUri
+
