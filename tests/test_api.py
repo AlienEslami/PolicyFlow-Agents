@@ -74,6 +74,12 @@ def test_production_auth_token_protects_api_but_not_health(
     assert authorized.status_code == 200
     assert authorized.json()["model_backend"] == "deterministic"
 
+    edge_authorized = client.get(
+        "/api/v1/meta",
+        headers={"X-PolicyFlow-Authorization": "Bearer test-secret"},
+    )
+    assert edge_authorized.status_code == 200
+
 
 def test_deployment_landing_page_is_public(service: PolicyFlowService) -> None:
     body = (

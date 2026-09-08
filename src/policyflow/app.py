@@ -107,6 +107,9 @@ def create_app(
 
     def principal_dependency(
         authorization: Annotated[str | None, Header(alias="Authorization")] = None,
+        edge_authorization: Annotated[
+            str | None, Header(alias="X-PolicyFlow-Authorization")
+        ] = None,
         subject: Annotated[str, Header(alias="X-Subject")] = "demo-operator",
         role: Annotated[Role, Header(alias="X-Role")] = Role.OPERATOR,
         tenant: Annotated[str, Header(alias="X-Tenant-ID")] = "NORTHSTAR_CA",
@@ -116,7 +119,8 @@ def create_app(
     ) -> Principal:
         if configured_token:
             expected = f"Bearer {configured_token}"
-            if not authorization or not secrets.compare_digest(authorization, expected):
+            supplied_token = authorization or edge_authorization
+            if not supplied_token or not secrets.compare_digest(supplied_token, expected):
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="valid bearer token required",

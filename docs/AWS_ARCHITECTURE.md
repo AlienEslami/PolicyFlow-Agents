@@ -5,7 +5,7 @@ and evidence link only after the live verification gate passes.
 
 ```mermaid
 flowchart LR
-  C[HTTPS client] --> CF[CloudFront default TLS domain]
+  C[HTTPS client] --> CF[CloudFront TLS + auth-header function]
   CF -->|secret origin header / HTTP| ALB[Application Load Balancer]
   ALB -->|security-group scoped :8000| ECS[ECS Fargate service]
   ECS --> ECR[Amazon ECR immutable image]
@@ -28,8 +28,10 @@ allows outbound TLS only.
 CloudFront supplies the public `https://*.cloudfront.net` endpoint and redirects HTTP
 viewers to HTTPS. The ALB listener is intentionally HTTP because TLS terminates at
 CloudFront. Direct ALB traffic receives `403`; only requests with the generated CloudFront
-origin header reach the target group. API caching is disabled, viewer `Host` and the
-origin-verification header are excluded, and all other API inputs are forwarded.
+origin header reach the target group. API caching is disabled. A viewer-request function
+overwrites an internal forwarding header with the viewer's `Authorization` value, and a
+small explicit allowlist forwards only that header plus required content, identity, and
+correlation headers. The origin-verification header is never accepted from a viewer.
 
 This origin-header control prevents casual ALB bypass but is not WAF authentication.
 Production expansion should add AWS WAF, a custom domain/certificate if required, private
@@ -59,4 +61,3 @@ The workflow then performs a 60-request HTTPS load gate and retains the result a
 artifact.
 
 See [AWS operations](AWS_OPERATIONS.md) for manual rollback and recovery.
-

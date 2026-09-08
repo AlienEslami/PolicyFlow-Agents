@@ -461,8 +461,7 @@ Resources:
           CookiesConfig:
             CookieBehavior: none
           HeadersConfig:
-            HeaderBehavior: whitelist
-            Headers: [Authorization]
+            HeaderBehavior: none
           QueryStringsConfig:
             QueryStringBehavior: none
 
@@ -477,12 +476,8 @@ Resources:
         HeadersConfig:
           HeaderBehavior: whitelist
           Headers:
-            - Accept
-            - Accept-Language
             - Content-Type
-            - Origin
-            - Access-Control-Request-Headers
-            - Access-Control-Request-Method
+            - X-PolicyFlow-Authorization
             - X-Correlation-ID
             - X-Subject
             - X-Role
@@ -515,6 +510,27 @@ Resources:
             Override: true
             Protection: true
 
+  AuthorizationHeaderFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: !Sub "${ProjectName}-${EnvironmentName}-authorization"
+      AutoPublish: true
+      FunctionConfig:
+        Comment: Safely map the viewer bearer token to an origin-forwarded header.
+        Runtime: cloudfront-js-2.0
+      FunctionCode: |
+        function handler(event) {
+          var request = event.request;
+          var viewerAuthorization = request.headers.authorization;
+          delete request.headers['x-policyflow-authorization'];
+          if (viewerAuthorization) {
+            request.headers['x-policyflow-authorization'] = {
+              value: viewerAuthorization.value
+            };
+          }
+          return request;
+        }
+
   Distribution:
     Type: AWS::CloudFront::Distribution
     Properties:
@@ -543,6 +559,9 @@ Resources:
           CachePolicyId: !Ref CachePolicy
           OriginRequestPolicyId: !Ref OriginRequestPolicy
           ResponseHeadersPolicyId: !Ref SecurityHeadersPolicy
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt AuthorizationHeaderFunction.FunctionARN
           Compress: true
         ViewerCertificate:
           CloudFrontDefaultCertificate: true
