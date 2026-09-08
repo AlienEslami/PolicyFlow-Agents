@@ -70,14 +70,22 @@ docker push $imageUri
 if ($LASTEXITCODE -ne 0) { throw "Docker push failed." }
 
 $oidcArn = ""
-$providers = aws iam list-open-id-connect-providers --output json | ConvertFrom-Json
-foreach ($provider in $providers.OpenIDConnectProviderList) {
-    $details = aws iam get-open-id-connect-provider `
-        --open-id-connect-provider-arn $provider.Arn `
-        --output json | ConvertFrom-Json
-    if ($details.Url -eq "token.actions.githubusercontent.com") {
-        $oidcArn = [string]$provider.Arn
-        break
+$stackProvider = aws cloudformation describe-stack-resource `
+    --region $Region `
+    --stack-name $serviceStack `
+    --logical-resource-id GitHubOidcProvider `
+    --output json 2>$null
+$stackOwnsOidcProvider = $LASTEXITCODE -eq 0 -and $stackProvider
+if (-not $stackOwnsOidcProvider) {
+    $providers = aws iam list-open-id-connect-providers --output json | ConvertFrom-Json
+    foreach ($provider in $providers.OpenIDConnectProviderList) {
+        $details = aws iam get-open-id-connect-provider `
+            --open-id-connect-provider-arn $provider.Arn `
+            --output json | ConvertFrom-Json
+        if ($details.Url -eq "token.actions.githubusercontent.com") {
+            $oidcArn = [string]$provider.Arn
+            break
+        }
     }
 }
 
