@@ -65,7 +65,9 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           image="$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-          docker build --pull --label "org.opencontainers.image.revision=$GITHUB_SHA" -t "$image" .
+          docker build --pull --platform linux/amd64 --provenance=false \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            -t "$image" .
           docker push "$image"
           echo "uri=$image" >> "$GITHUB_OUTPUT"
 
@@ -73,15 +75,28 @@ jobs:
         env:
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          aws ecr wait image-scan-complete \
-            --repository-name "$ECR_REPOSITORY" \
-            --image-id imageTag="$IMAGE_TAG"
-          critical="$(aws ecr describe-image-scan-findings \
-            --repository-name "$ECR_REPOSITORY" \
-            --image-id imageTag="$IMAGE_TAG" \
-            --query 'imageScanFindings.findingSeverityCounts.CRITICAL' \
-            --output text)"
-          if [ "$critical" != "None" ] && [ "$critical" -gt 0 ]; then
+          scan_status=""
+          for attempt in $(seq 1 18); do
+            if aws ecr describe-image-scan-findings \
+              --repository-name "$ECR_REPOSITORY" \
+              --image-id imageTag="$IMAGE_TAG" \
+              --output json > scan.json 2> scan-error.txt; then
+              scan_status="$(jq -r '.imageScanStatus.status' scan.json)"
+              if [ "$scan_status" = "COMPLETE" ]; then break; fi
+              if [ "$scan_status" = "FAILED" ]; then
+                jq . scan.json
+                exit 1
+              fi
+            fi
+            echo "Waiting for ECR scan results ($attempt/18)"
+            sleep 10
+          done
+          if [ "$scan_status" != "COMPLETE" ]; then
+            cat scan-error.txt
+            exit 1
+          fi
+          critical="$(jq -r '.imageScanFindings.findingSeverityCounts.CRITICAL // 0' scan.json)"
+          if [ "$critical" -gt 0 ]; then
             echo "ECR scan found $critical critical vulnerabilities"
             exit 1
           fi
@@ -120,7 +135,7 @@ jobs:
 
       - name: Preserve deployment evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: policyflow-aws-${{ github.sha }}
           path: load-test.json

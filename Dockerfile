@@ -1,4 +1,4 @@
-FROM python:3.12.11-slim-bookworm AS builder
+FROM python:3.12-alpine3.23@sha256:167bc85084c9df34480efc26b4528fb68feaa8a79183b5658952137025b6f061 AS builder
 
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -11,15 +11,15 @@ RUN python -m venv /opt/venv && \
     /opt/venv/bin/pip install --upgrade pip && \
     /opt/venv/bin/pip install ".[aws]"
 
-FROM python:3.12.11-slim-bookworm
+FROM python:3.12-alpine3.23@sha256:167bc85084c9df34480efc26b4528fb68feaa8a79183b5658952137025b6f061
 
 ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONPATH="/app/src" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
-RUN groupadd --system --gid 10001 policyflow && \
-    useradd --system --uid 10001 --gid policyflow --home /nonexistent policyflow
+RUN addgroup -S -g 10001 policyflow && \
+    adduser -S -D -H -u 10001 -G policyflow policyflow
 WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
 COPY data ./data

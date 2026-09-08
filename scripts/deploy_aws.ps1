@@ -60,7 +60,9 @@ $ecrPassword | docker login --username AWS --password-stdin $registry | Out-Null
 $ecrPassword = $null
 if ($LASTEXITCODE -ne 0) { throw "Docker could not authenticate to ECR." }
 
-docker build --pull --label "org.opencontainers.image.revision=$revision" -t $imageUri $projectRoot
+docker build --pull --platform linux/amd64 --provenance=false `
+    --label "org.opencontainers.image.revision=$revision" `
+    -t $imageUri $projectRoot
 if ($LASTEXITCODE -ne 0) { throw "Docker build failed." }
 docker push $imageUri
 if ($LASTEXITCODE -ne 0) { throw "Docker push failed." }
@@ -146,4 +148,3 @@ if ($LASTEXITCODE -ne 0) { throw "The deployed HTTPS load test failed its gate."
 Write-Output "PolicyFlow is deployed at $($outputMap.HttpsUrl)"
 Write-Output "GitHub deploy role: $($outputMap.GitHubDeployRoleArn)"
 Write-Output "Non-secret evidence: $artifacts"
-
