@@ -9,11 +9,12 @@ synthetic-only and Bedrock is implemented but disabled in the continuously runni
 |---|---|
 | Public operator console | <https://d20g4ajd2f79hc.cloudfront.net/ui/> (`200`, browser-inspected) |
 | CloudFormation service stack | `UPDATE_COMPLETE` |
-| Stable ECS task definition | `policyflow-agents-prod:6` (1 desired, 1 running, 0 pending) |
-| Manually deployed source candidate | `090f1c51b704` |
-| Immutable image | `071239861872.dkr.ecr.ca-central-1.amazonaws.com/policyflow-agents-prod:090f1c51b704` |
-| Image digest | `sha256:a97214ebd07e06580c2007ffe054135b621714f8fb4f865a2115d079d38349f0` |
-| GitHub Actions verification | Pending explicit authorization to push the shared `main` branch |
+| Stable ECS task definition | `policyflow-agents-prod:8` (1 desired, 1 running, 0 pending) |
+| Deployed source revision | `cf08e521ef9d5d842b35c8d6b6b0402ea9a0dc4e` |
+| Immutable image | `071239861872.dkr.ecr.ca-central-1.amazonaws.com/policyflow-agents-prod:cf08e521ef9d5d842b35c8d6b6b0402ea9a0dc4e` |
+| Image digest | `sha256:9e922a9f3de7329477f14290640dab5bb591f09796592a639a19965d4d630fcf` |
+| GitHub deployment | [successful Deploy AWS run](https://github.com/AlienEslami/PolicyFlow-Agents/actions/runs/34284020832) |
+| Companion validation | [successful CI run](https://github.com/AlienEslami/PolicyFlow-Agents/actions/runs/34284020819) |
 
 The extension adds the React/TypeScript operator console, a scoped MCP Streamable HTTP
 surface, model usage/latency reporting, and the S3/SQS/Lambda ingestion path. The deployed
@@ -28,9 +29,11 @@ was tagged `quarantined: true`. Lambda was `Active`; ingestion-error, DLQ, CPU, 
 and unhealthy-target alarms were all `OK`. The manifest is tracked as
 [`docs/evidence/ingestion-manifest-2026-09-08.json`](evidence/ingestion-manifest-2026-09-08.json).
 
-The post-update HTTPS gate sent 60 requests at concurrency 6: all 60 returned `200`, mean
-latency was 65.746 ms, p95 was 279.968 ms, and maximum was 286.074 ms. A separate controlled
-Bedrock evaluation made three successful Nova 2 Lite requests and is documented in
+The final GitHub HTTPS gate sent 60 requests at concurrency 6: all 60 returned `200`, mean
+latency was 127.666 ms, p95 was 404.590 ms, and maximum was 406.135 ms. Its JSON artifact is
+retained as `policyflow-aws-cf08e521ef9d5d842b35c8d6b6b0402ea9a0dc4e`. The ECR scan
+completed with zero critical and three high findings. A separate controlled Bedrock
+evaluation made three successful Nova 2 Lite requests and is documented in
 [the Bedrock evaluation report](BEDROCK_EVALUATION.md).
 
 The stack's automatic rollbacks were also exercised during implementation: an initial S3
@@ -38,6 +41,12 @@ notification/KMS incompatibility and an account-level Lambda reserved-concurrenc
 both rolled back cleanly. The final design uses S3-compatible SSE-SQS and an event-source
 maximum-concurrency cap, then reached `UPDATE_COMPLETE`. This is concrete failure-recovery
 evidence rather than a claimed production incident history.
+
+The first extension workflow exposed a separate delivery failure: a local stack update
+mistakenly reclassified its stack-managed GitHub OIDC provider as external and CloudFormation
+deleted it. GitHub correctly failed closed before ECR or ECS mutation. The deployment script
+now detects stack ownership, CloudFormation restored the provider, and the next workflow
+successfully assumed the least-privilege role and completed every release gate.
 
 ## Baseline release (historical)
 
