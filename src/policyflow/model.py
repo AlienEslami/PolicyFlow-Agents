@@ -154,7 +154,7 @@ class BedrockSynthesisModel:
         client: Any | None = None,
     ) -> None:
         if client is None:
-            import boto3  # type: ignore[import-untyped]
+            import boto3
 
             client = boto3.client("bedrock-runtime", region_name=region_name)
         self.model_name = model_name
