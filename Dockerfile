@@ -1,3 +1,11 @@
+FROM node:24-alpine@sha256:e67514e5d0f6c46656005e1b693b2ec9d52e80b641307de684d4a015ba7a4eaf AS ui-builder
+
+WORKDIR /workspace/ui
+COPY ui/package.json ui/package-lock.json ./
+RUN npm ci
+COPY ui ./
+RUN npm run build
+
 FROM python:3.12-alpine3.23@sha256:167bc85084c9df34480efc26b4528fb68feaa8a79183b5658952137025b6f061 AS builder
 
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
@@ -24,6 +32,7 @@ WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
 COPY data ./data
 COPY src ./src
+COPY --from=ui-builder /workspace/src/policyflow/static ./src/policyflow/static
 USER 10001:10001
 EXPOSE 8000
 ENTRYPOINT ["uvicorn", "policyflow.app:app"]

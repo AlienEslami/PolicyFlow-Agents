@@ -14,6 +14,11 @@ flowchart LR
   ECS --> CWL[CloudWatch Logs + EMF]
   ECS --> CWI[ECS Container Insights]
   ALB --> CWM[CloudWatch metrics + alarms]
+  S3[S3 synthetic intake] --> SQS[SQS ingestion queue]
+  SQS --> L[Lambda validator + chunker]
+  SQS --> DLQ[SQS dead-letter queue]
+  L --> S3
+  L --> CWL
   GH[GitHub Actions] -->|OIDC temporary role| ECR
   GH -->|new task revision| ECS
 ```
@@ -37,6 +42,27 @@ This origin-header control prevents casual ALB bypass but is not WAF authenticat
 Production expansion should add AWS WAF, a custom domain/certificate if required, private
 subnets with selected VPC endpoints, and verified end-user OIDC instead of a shared bearer
 token.
+
+## Operator and MCP surfaces
+
+The same immutable image serves a React/TypeScript operator console at `/ui/`. It keeps
+the bearer token in memory, renders tenant-filtered evidence and tool/agent activity, and
+supports the existing separation-of-duties approval and dispatch flow. The MCP endpoint
+at `/mcp/` uses stateless Streamable HTTP and exposes only `get_claim` and
+`check_required_documents`. Authentication is enforced at the ASGI boundary; role,
+tenant, tool allowlist, case-ID validation, and minimum-necessary output are enforced in
+the tool boundary. The shared token is appropriate only to this bounded demonstrator;
+production should use an OAuth/OIDC resource-server design with per-client scopes.
+
+## Event-driven ingestion
+
+The stack also provisions a private, versioned S3 bucket whose `incoming/*.json` events
+flow through an encrypted SQS queue to a Lambda with event-source concurrency capped at
+two. It validates,
+chunks, content-addresses, and quarantine-tags synthetic content before writing a
+manifest to `processed/`. Failed messages move to an encrypted DLQ after three receives.
+The Lambda role is prefix- and queue-scoped, and CloudWatch covers logs, errors, queue
+depth, and DLQ visibility. See [ingestion pipeline](INGESTION_PIPELINE.md).
 
 ## Identity and secrets
 

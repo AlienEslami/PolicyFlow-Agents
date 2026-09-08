@@ -119,6 +119,7 @@ class RunResponse(BaseModel):
     summary: str
     plan: list[PlanStep]
     tool_trace: list[ToolResult]
+    evidence: list[Evidence]
     citations: list[Citation]
     risk_findings: list[RiskFinding]
     action: ActionProposal | None
@@ -126,6 +127,9 @@ class RunResponse(BaseModel):
     model_name: str
     model_latency_ms: float
     model_fallback: bool
+    model_input_tokens: int = 0
+    model_output_tokens: int = 0
+    model_request_id: str | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 

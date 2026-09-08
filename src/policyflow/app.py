@@ -2,13 +2,15 @@ import os
 import re
 import secrets
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from . import __version__
@@ -24,6 +26,7 @@ from .contracts import (
 )
 from .embeddings import HashEmbeddingProvider
 from .graph import PolicyFlowService
+from .mcp_server import build_mcp_http_app, build_mcp_server
 from .model import (
     BedrockSynthesisModel,
     DeterministicSynthesisModel,
@@ -69,6 +72,14 @@ def create_app(
         auth_token if auth_token is not None else os.getenv("POLICYFLOW_AUTH_TOKEN")
     )
     logger = configure_json_logging()
+    mcp_server = build_mcp_server(workflow.gateway)
+    mcp_http_app = build_mcp_http_app(mcp_server, configured_token)
+
+    @asynccontextmanager
+    async def lifespan(_application: FastAPI) -> AsyncIterator[None]:
+        async with mcp_server.session_manager.run():
+            yield
+
     application = FastAPI(
         title="PolicyFlow Agents",
         version=__version__,
@@ -76,6 +87,7 @@ def create_app(
             "Synthetic-only, governed insurance service-case orchestration. "
             "No claim adjudication or live enterprise connection."
         ),
+        lifespan=lifespan,
     )
     application.state.workflow = workflow
 
@@ -169,6 +181,9 @@ def create_app(
             "live_enterprise_connections": False,
             "autonomous_claim_adjudication": False,
             "human_approval_required": True,
+            "operator_ui": "/ui/",
+            "mcp_endpoint": "/mcp/",
+            "mcp_tools": ["get_claim", "check_required_documents"],
             "model_backend": workflow.model.backend,
             "model_name": workflow.model.model_name,
         }
@@ -179,6 +194,8 @@ def create_app(
             "service": "policyflow-agents",
             "status": "deployed",
             "documentation": "/docs",
+            "operator_ui": "/ui/",
+            "mcp": "/mcp/",
             "health": "/health/live",
             "synthetic_only": True,
         }
@@ -244,6 +261,19 @@ def create_app(
     @application.get("/metrics", include_in_schema=False)
     def metrics() -> Response:
         return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+    static_directory = Path(__file__).resolve().parent / "static"
+    if static_directory.exists():
+
+        @application.get("/ui", include_in_schema=False)
+        def ui_redirect() -> RedirectResponse:
+            return RedirectResponse("/ui/", status_code=307)
+
+        application.mount(
+            "/ui", StaticFiles(directory=static_directory, html=True), name="operator-ui"
+        )
+
+    application.mount("/mcp", mcp_http_app, name="mcp")
 
     return application
 

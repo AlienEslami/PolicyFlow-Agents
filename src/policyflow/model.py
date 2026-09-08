@@ -14,6 +14,9 @@ class SynthesisResult:
     model_name: str
     latency_ms: float
     used_fallback: bool = False
+    input_tokens: int = 0
+    output_tokens: int = 0
+    request_id: str | None = None
 
 
 class SynthesisModel(Protocol):
@@ -184,8 +187,15 @@ class BedrockSynthesisModel:
                 inferenceConfig={"maxTokens": 96, "temperature": 0},
             )
             decoded = str(response["output"]["message"]["content"][0]["text"]).strip()
+            usage = response.get("usage", {})
+            input_tokens = int(usage.get("inputTokens", 0))
+            output_tokens = int(usage.get("outputTokens", 0))
+            request_id = str(response.get("ResponseMetadata", {}).get("RequestId", "")) or None
         except Exception:
             decoded = ""
+            input_tokens = 0
+            output_tokens = 0
+            request_id = None
         forbidden = ("approve", "deny", "eligible", "coverage decision", "admissible")
         use_fallback = not decoded or any(word in decoded.casefold() for word in forbidden)
         draft = (
@@ -199,4 +209,7 @@ class BedrockSynthesisModel:
             model_name=self.model_name,
             latency_ms=(time.perf_counter() - started) * 1000,
             used_fallback=use_fallback,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            request_id=request_id,
         )

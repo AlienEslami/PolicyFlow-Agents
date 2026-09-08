@@ -46,6 +46,7 @@ health, ECS stopped-task reasons, and application logs.
 | CloudFront returns 403 | ALB origin rule or custom header mismatch | Compare stack resources; redeploy the stack to synchronize the NoEcho parameter |
 | One task or AZ fails | ECS replaces task; ALB routes only to healthy targets | Wait for replacement; increase desired count to two for real high availability |
 | AWS regional incident | CloudWatch/Health event and regional unavailability | Local demonstrator has no multi-region failover; deploy a second controlled stack if required |
+| Ingestion message repeatedly fails | Lambda error alarm and visible-DLQ alarm | Inspect metadata-only Lambda logs; correct the synthetic object; redrive only after validating the fix |
 
 ## Backup and state
 
@@ -63,6 +64,11 @@ requests through Canada and U.S. regions. It is disabled by default; even synthe
 should record the model/profile, region-routing choice, evaluation, token costs, and
 fallback rate. The adapter fails safely to the deterministic grounded response.
 
+A controlled three-case Bedrock execution is recorded in
+[the evaluation report](BEDROCK_EVALUATION.md): 100% workflow-quality checks, three
+successful model requests, 804 total tokens, 1.485-second mean latency, and an estimated
+US$0.0005602 model cost. One response used the safe deterministic fallback.
+
 ## Cost envelope
 
 For one continuously running 0.25-vCPU/0.5-GB Linux/x86 Fargate task in Canada Central at
@@ -77,6 +83,7 @@ an engineering estimate, not a quote:
 | CloudFront HTTPS/data | US$0–3 at portfolio traffic |
 | CloudWatch logs, EMF, alarms, dashboard, Container Insights | US$2–6 |
 | ECR and Secrets Manager | Under US$2 |
+| S3/SQS/Lambda ingestion at portfolio volume | Near US$0–1 |
 | **Expected total** | **US$45–60** |
 
 Pricing varies by region, traffic, log volume, retention, and AWS pricing changes. Confirm
@@ -88,4 +95,3 @@ separate charges.
 To stop recurring cost completely, explicitly run `scripts/destroy_aws.ps1` and approve
 its PowerShell confirmation. It deletes both CloudFormation stacks, ECR images, logs, and
 the runtime secret. This operation is irreversible.
-

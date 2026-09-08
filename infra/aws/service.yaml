@@ -180,6 +180,294 @@ Resources:
         - Key: Project
           Value: !Ref ProjectName
 
+  IngestionDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${ProjectName}-${EnvironmentName}-ingestion-dlq"
+      SqsManagedSseEnabled: true
+      MessageRetentionPeriod: 1209600
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  IngestionQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${ProjectName}-${EnvironmentName}-ingestion"
+      SqsManagedSseEnabled: true
+      VisibilityTimeout: 120
+      MessageRetentionPeriod: 345600
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt IngestionDeadLetterQueue.Arn
+        maxReceiveCount: 3
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  IngestionQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues: [!Ref IngestionQueue]
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AcceptOnlyThisBucketNotifications
+            Effect: Allow
+            Principal:
+              Service: s3.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt IngestionQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !Sub >-
+                  arn:${AWS::Partition}:s3:::${ProjectName}-${EnvironmentName}-ingestion-${AWS::AccountId}-${AWS::Region}
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+
+  IngestionBucket:
+    Type: AWS::S3::Bucket
+    DependsOn: IngestionQueuePolicy
+    Properties:
+      BucketName: !Sub >-
+        ${ProjectName}-${EnvironmentName}-ingestion-${AWS::AccountId}-${AWS::Region}
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireSyntheticPipelineArtifacts
+            Status: Enabled
+            ExpirationInDays: 30
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 7
+      NotificationConfiguration:
+        QueueConfigurations:
+          - Event: s3:ObjectCreated:*
+            Queue: !GetAtt IngestionQueue.Arn
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: incoming/
+                  - Name: suffix
+                    Value: .json
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: DataClassification
+          Value: synthetic-only
+
+  IngestionLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: NormalizeOnlyPolicyFlowDocuments
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: ConsumeOnlyIngestionQueue
+                Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource: !GetAtt IngestionQueue.Arn
+              - Sid: ReadOnlyIncomingObjects
+                Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub "${IngestionBucket.Arn}/incoming/*"
+              - Sid: WriteOnlyProcessedManifests
+                Effect: Allow
+                Action: s3:PutObject
+                Resource: !Sub "${IngestionBucket.Arn}/processed/*"
+              - Sid: WriteOnlyIngestionLogs
+                Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "${IngestionLogGroup.Arn}:*"
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  IngestionFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-${EnvironmentName}-ingestion"
+      Description: Normalize bounded synthetic JSON documents into chunk manifests.
+      Runtime: python3.12
+      Handler: index.handler
+      Role: !GetAtt IngestionLambdaRole.Arn
+      Timeout: 30
+      MemorySize: 128
+      Environment:
+        Variables:
+          OUTPUT_PREFIX: processed/
+          MAX_OBJECT_BYTES: "1048576"
+      Code:
+        ZipFile: |
+          import hashlib
+          import json
+          import os
+          from urllib.parse import unquote_plus
+          import boto3
+
+          s3 = boto3.client("s3")
+          OUTPUT_PREFIX = os.environ["OUTPUT_PREFIX"]
+          MAX_OBJECT_BYTES = int(os.environ["MAX_OBJECT_BYTES"])
+          INJECTION_MARKERS = ("ignore previous", "system prompt", "reveal secret")
+
+          def chunk_text(text, size=800, overlap=100):
+              chunks = []
+              start = 0
+              while start < len(text):
+                  chunks.append(text[start:start + size])
+                  if start + size >= len(text):
+                      break
+                  start += size - overlap
+              return chunks
+
+          def process_record(record):
+              envelope = json.loads(record["body"])
+              detail = envelope["Records"][0]["s3"]
+              bucket = detail["bucket"]["name"]
+              key = unquote_plus(detail["object"]["key"])
+              if not key.startswith("incoming/") or not key.endswith(".json"):
+                  return
+              size = int(detail["object"].get("size", 0))
+              if size > MAX_OBJECT_BYTES:
+                  raise ValueError("object_too_large")
+              source = s3.get_object(Bucket=bucket, Key=key)
+              raw = source["Body"].read(MAX_OBJECT_BYTES + 1)
+              if len(raw) > MAX_OBJECT_BYTES:
+                  raise ValueError("object_too_large")
+              payload = json.loads(raw)
+              documents = payload if isinstance(payload, list) else payload["documents"]
+              if not isinstance(documents, list) or len(documents) > 50:
+                  raise ValueError("invalid_document_batch")
+              chunks = []
+              for document in documents:
+                  document_id = str(document["document_id"])
+                  tenant_id = str(document["tenant_id"])
+                  title = str(document["title"])
+                  text = str(document["text"])
+                  if not document_id or not tenant_id or not title or not text:
+                      raise ValueError("missing_document_field")
+                  quarantined = any(marker in text.casefold() for marker in INJECTION_MARKERS)
+                  for position, content in enumerate(chunk_text(text)):
+                      digest = hashlib.sha256(
+                          f"{tenant_id}:{document_id}:{position}:{content}".encode()
+                      ).hexdigest()[:16]
+                      chunks.append({
+                          "chunk_id": f"ING-{digest}",
+                          "document_id": document_id,
+                          "tenant_id": tenant_id,
+                          "title": title,
+                          "position": position,
+                          "text": content,
+                          "quarantined": quarantined,
+                      })
+              output_key = OUTPUT_PREFIX + key.removeprefix("incoming/").removesuffix(".json") + ".manifest.json"
+              body = json.dumps({"source_key": key, "chunks": chunks}, separators=(",", ":"))
+              s3.put_object(
+                  Bucket=bucket,
+                  Key=output_key,
+                  Body=body.encode(),
+                  ContentType="application/json",
+                  ServerSideEncryption="AES256",
+              )
+              print(json.dumps({
+                  "event": "ingestion_completed",
+                  "source_key": key,
+                  "documents": len(documents),
+                  "chunks": len(chunks),
+                  "quarantined": sum(1 for item in chunks if item["quarantined"]),
+              }))
+
+          def handler(event, _context):
+              failures = []
+              for record in event.get("Records", []):
+                  try:
+                      process_record(record)
+                  except Exception as error:
+                      print(json.dumps({
+                          "event": "ingestion_failed",
+                          "message_id": record.get("messageId"),
+                          "error_type": type(error).__name__,
+                      }))
+                      failures.append({"itemIdentifier": record.get("messageId", "unknown")})
+              return {"batchItemFailures": failures}
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  IngestionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ProjectName}-${EnvironmentName}-ingestion"
+      RetentionInDays: 14
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  IngestionEventSource:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn: !GetAtt IngestionQueue.Arn
+      FunctionName: !Ref IngestionFunction
+      Enabled: true
+      BatchSize: 1
+      FunctionResponseTypes: [ReportBatchItemFailures]
+      ScalingConfig:
+        MaximumConcurrency: 2
+
+  IngestionDlqAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: PolicyFlow ingestion has a poison message in its dead-letter queue.
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt IngestionDeadLetterQueue.QueueName
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  IngestionErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: PolicyFlow ingestion Lambda returned an error.
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref IngestionFunction
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
   RuntimeSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
@@ -306,6 +594,8 @@ Resources:
               Value: "true"
             - Name: POLICYFLOW_MODEL_BACKEND
               Value: !If [BedrockEnabled, bedrock, deterministic]
+            - Name: POLICYFLOW_MCP_ALLOWED_HOSTS
+              Value: !GetAtt LoadBalancer.DNSName
             - !If
               - BedrockEnabled
               - Name: POLICYFLOW_BEDROCK_MODEL_ID
@@ -476,13 +766,16 @@ Resources:
         HeadersConfig:
           HeaderBehavior: whitelist
           Headers:
+            - Accept
             - Content-Type
+            - Mcp-Method
+            - Mcp-Name
+            - Mcp-Protocol-Version
             - X-PolicyFlow-Authorization
             - X-Correlation-ID
             - X-Subject
             - X-Role
             - X-Tenant-ID
-            - X-Classification
         QueryStringsConfig:
           QueryStringBehavior: all
 
@@ -681,6 +974,22 @@ Resources:
                 "region": "${AWS::Region}",
                 "query": "SOURCE '${LogGroup}' | fields @timestamp, level, method, route, status_code, duration_ms, correlation_id | sort @timestamp desc | limit 50"
               }
+            },
+            {
+              "type": "metric",
+              "width": 24,
+              "height": 6,
+              "properties": {
+                "title": "Event-driven ingestion health",
+                "region": "${AWS::Region}",
+                "metrics": [
+                  ["AWS/Lambda", "Invocations", "FunctionName", "${IngestionFunction}", {"stat": "Sum"}],
+                  [".", "Errors", ".", ".", {"stat": "Sum"}],
+                  ["AWS/SQS", "ApproximateNumberOfMessagesVisible", "QueueName", "${IngestionQueue.QueueName}", {"stat": "Maximum"}],
+                  [".", ".", ".", "${IngestionDeadLetterQueue.QueueName}", {"stat": "Maximum"}]
+                ],
+                "period": 300
+              }
             }
           ]
         }
@@ -784,3 +1093,9 @@ Outputs:
     Value: !GetAtt GitHubDeployRole.Arn
   EcrRepositoryName:
     Value: !Ref EcrRepositoryName
+  IngestionBucketName:
+    Value: !Ref IngestionBucket
+  IngestionQueueUrl:
+    Value: !Ref IngestionQueue
+  IngestionDeadLetterQueueUrl:
+    Value: !Ref IngestionDeadLetterQueue

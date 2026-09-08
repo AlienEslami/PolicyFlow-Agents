@@ -16,6 +16,8 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 $bootstrapStack = "$ProjectName-$EnvironmentName-ecr"
 $serviceStack = "$ProjectName-$EnvironmentName-service"
 $repositoryName = "$ProjectName-$EnvironmentName"
+$env:AWS_DEFAULT_REGION = $Region
+$env:AWS_REGION = $Region
 
 foreach ($command in @("aws", "docker", "git")) {
     if (-not (Get-Command $command -ErrorAction SilentlyContinue)) {
@@ -23,7 +25,7 @@ foreach ($command in @("aws", "docker", "git")) {
     }
 }
 
-$identity = aws sts get-caller-identity --output json | ConvertFrom-Json
+$identity = aws sts get-caller-identity --region $Region --output json | ConvertFrom-Json
 if ($LASTEXITCODE -ne 0) {
     throw "AWS authentication failed. Configure a short-lived AWS CLI session first."
 }
@@ -129,6 +131,8 @@ $safeOutputs = [ordered]@{
     log_group = $outputMap.LogGroupName
     dashboard_url = $outputMap.DashboardUrl
     github_deploy_role_arn = $outputMap.GitHubDeployRoleArn
+    ingestion_bucket = $outputMap.IngestionBucketName
+    ingestion_queue_url = $outputMap.IngestionQueueUrl
 }
 $safeOutputs | ConvertTo-Json | Set-Content `
     -Encoding utf8 `

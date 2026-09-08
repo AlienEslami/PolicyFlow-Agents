@@ -29,6 +29,12 @@ risk controls, and stages an idempotent case-management action for human approva
 - A deployable AWS profile with ECR, ECS Fargate, CloudFront HTTPS, an Application Load
   Balancer, Secrets Manager, least-privilege IAM, CloudWatch logs/metrics/alarms, and
   GitHub Actions OIDC delivery.
+- A React/TypeScript operator console for evidence, agent/tool activity, risk controls,
+  approvals, dispatch, and hash-chained audit history.
+- A bearer-protected Streamable HTTP MCP endpoint exposing exactly two tenant-scoped,
+  read-only tools, with invalid-tool, cross-tenant, and prompt-injection tests.
+- A verified Amazon Bedrock evaluation path plus an inexpensive S3/SQS/Lambda ingestion
+  pipeline with quarantine tagging, a dead-letter queue, and CloudWatch alarms.
 - Provider ports for real embeddings (`BAAI/bge-small-en-v1.5`) and local generation
   (`google/flan-t5-small`) while CI stays deterministic, offline, and reproducible.
 
@@ -66,7 +72,8 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m uvicorn policyflow.app:app --reload --port 8010
 ```
 
-Open `http://127.0.0.1:8010/docs`. The default headers create a synthetic operator in
+Open `http://127.0.0.1:8010/ui/` for the operator console or `/docs` for the API. The
+default headers create a synthetic operator in
 tenant `NORTHSTAR_CA`. Use `X-Role: approver` with a different `X-Subject` for approval,
 then `X-Role: service` for the simulated dispatch endpoint.
 
@@ -112,6 +119,8 @@ model:
 | `GET /api/v1/runs/{id}/timeline` | Verify and read the hash-chained audit history |
 | `GET /api/v1/graph` | Inspect the implemented LangGraph definition |
 | `GET /metrics` | Prometheus metrics |
+| `GET /ui/` | React/TypeScript operator console |
+| `POST /mcp/` | Authenticated Streamable HTTP MCP transport with two read-only tools |
 
 ## Engineering documentation
 
@@ -119,6 +128,8 @@ model:
 - [AWS architecture](docs/AWS_ARCHITECTURE.md)
 - [AWS deployment, rollback, recovery, and cost guide](docs/AWS_OPERATIONS.md)
 - [Verified AWS deployment evidence](docs/AWS_DEPLOYMENT_EVIDENCE.md)
+- [Verified Amazon Bedrock evaluation](docs/BEDROCK_EVALUATION.md)
+- [Event-driven ingestion pipeline](docs/INGESTION_PIPELINE.md)
 - [Threat model](docs/THREAT_MODEL.md)
 - [Production readiness and Azure fit-gap](docs/PRODUCTION_READINESS.md)
 - [Enterprise agent capability matrix](docs/CAPABILITY_MATRIX.md)

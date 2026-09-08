@@ -17,7 +17,11 @@ class FakeBedrockClient:
         self.calls.append(kwargs)
         if self.text is None:
             raise RuntimeError("synthetic outage")
-        return {"output": {"message": {"content": [{"text": self.text}]}}}
+        return {
+            "output": {"message": {"content": [{"text": self.text}]}},
+            "usage": {"inputTokens": 101, "outputTokens": 17},
+            "ResponseMetadata": {"RequestId": "synthetic-bedrock-request"},
+        }
 
 
 def _bedrock_service(
@@ -41,6 +45,9 @@ def test_bedrock_adapter_records_model_provenance(
     assert response.model_backend == "bedrock"
     assert response.model_name == "us.amazon.nova-2-lite-v1:0"
     assert response.model_fallback is False
+    assert response.model_input_tokens == 101
+    assert response.model_output_tokens == 17
+    assert response.model_request_id == "synthetic-bedrock-request"
     assert client.calls[0]["inferenceConfig"] == {"maxTokens": 96, "temperature": 0}
 
 

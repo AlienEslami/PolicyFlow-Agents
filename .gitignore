@@ -6,4 +6,7 @@
 __pycache__/
 *.py[cod]
 coverage.xml
-
+.venv/
+ui/node_modules/
+src/policyflow/static/
+src/policyflow_agents.egg-info/

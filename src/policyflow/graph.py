@@ -53,6 +53,9 @@ class GraphState(TypedDict, total=False):
     model_name: str
     model_latency_ms: float
     model_fallback: bool
+    model_input_tokens: int
+    model_output_tokens: int
+    model_request_id: str | None
     status: RunStatus
     reason_code: str | None
     response: RunResponse
@@ -209,6 +212,9 @@ class PolicyFlowService:
             "model_name": result.model_name,
             "model_latency_ms": result.latency_ms,
             "model_fallback": result.used_fallback,
+            "model_input_tokens": result.input_tokens,
+            "model_output_tokens": result.output_tokens,
+            "model_request_id": result.request_id,
         }
 
     @staticmethod
@@ -272,6 +278,7 @@ class PolicyFlowService:
             summary=state.get("summary", "Request stopped before synthesis."),
             plan=state.get("plan", []),
             tool_trace=state.get("tool_results", []),
+            evidence=state.get("evidence", []),
             citations=citations,
             risk_findings=state.get("risk_findings", []),
             action=state.get("action"),
@@ -279,6 +286,9 @@ class PolicyFlowService:
             model_name=state.get("model_name", "not_invoked"),
             model_latency_ms=state.get("model_latency_ms", 0.0),
             model_fallback=state.get("model_fallback", False),
+            model_input_tokens=state.get("model_input_tokens", 0),
+            model_output_tokens=state.get("model_output_tokens", 0),
+            model_request_id=state.get("model_request_id"),
         )
         self.store.save(response, state["principal"])
         self.memory.remember(

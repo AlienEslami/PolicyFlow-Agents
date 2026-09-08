@@ -16,6 +16,7 @@ def test_api_workflow_approval_dispatch_and_audit(service: PolicyFlowService) ->
     assert created.status_code == 201
     run_id = created.json()["run_id"]
     assert created.json()["action"]["state"] == "pending_human_approval"
+    assert created.json()["evidence"]
 
     approval = client.post(
         f"/api/v1/runs/{run_id}/decision",
@@ -50,6 +51,8 @@ def test_api_exposes_capability_boundary_and_graph(service: PolicyFlowService) -
     meta = client.get("/api/v1/meta")
     assert meta.status_code == 200
     assert meta.json()["autonomous_claim_adjudication"] is False
+    assert meta.json()["operator_ui"] == "/ui/"
+    assert meta.json()["mcp_tools"] == ["get_claim", "check_required_documents"]
     assert client.get("/api/v1/graph").status_code == 403
     graph = client.get("/api/v1/graph", headers={"X-Role": "auditor"})
     assert graph.status_code == 200

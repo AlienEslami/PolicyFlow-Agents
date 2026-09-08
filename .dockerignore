@@ -4,6 +4,8 @@
 .pytest_cache
 .ruff_cache
 .venv
+artifacts
 coverage.xml
+src/policyflow/static
 tests
-
+ui/node_modules

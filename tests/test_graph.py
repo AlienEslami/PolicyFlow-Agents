@@ -36,6 +36,10 @@ def test_complete_case_stages_only_a_human_approved_action(
     assert response.model_backend == "deterministic"
     assert response.model_name == "grounded-template-v1"
     assert response.model_fallback is False
+    assert response.evidence
+    assert {item.chunk_id for item in response.evidence} >= {
+        citation.chunk_id for citation in response.citations
+    }
     assert "claimant_name" not in str(response.tool_trace)
     assert "POISON-999" not in {citation.document_id for citation in response.citations}
 
