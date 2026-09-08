@@ -461,7 +461,8 @@ Resources:
           CookiesConfig:
             CookieBehavior: none
           HeadersConfig:
-            HeaderBehavior: none
+            HeaderBehavior: whitelist
+            Headers: [Authorization]
           QueryStringsConfig:
             QueryStringBehavior: none
 
@@ -474,8 +475,19 @@ Resources:
         CookiesConfig:
           CookieBehavior: all
         HeadersConfig:
-          HeaderBehavior: allExcept
-          Headers: [Host, X-PolicyFlow-Origin]
+          HeaderBehavior: whitelist
+          Headers:
+            - Accept
+            - Accept-Language
+            - Content-Type
+            - Origin
+            - Access-Control-Request-Headers
+            - Access-Control-Request-Method
+            - X-Correlation-ID
+            - X-Subject
+            - X-Role
+            - X-Tenant-ID
+            - X-Classification
         QueryStringsConfig:
           QueryStringBehavior: all
 
