@@ -7,9 +7,8 @@ risk controls, and stages an idempotent case-management action for human approva
 
 > Current boundary: this service uses synthetic records, an in-process workflow store,
 > deterministic CI model and embedding doubles, and a simulated downstream connector.
-> It is not connected to an insurer or authorized to adjudicate claims. AWS deployment
-> automation is included; claim a live deployment only after the evidence steps in the
-> operations guide have succeeded in your AWS account.
+> It is not connected to an insurer or authorized to adjudicate claims. The AWS profile
+> is live and its deployment evidence is recorded below.
 
 ## What is implemented
 
@@ -119,6 +118,7 @@ model:
 - [Architecture](docs/ARCHITECTURE.md)
 - [AWS architecture](docs/AWS_ARCHITECTURE.md)
 - [AWS deployment, rollback, recovery, and cost guide](docs/AWS_OPERATIONS.md)
+- [Verified AWS deployment evidence](docs/AWS_DEPLOYMENT_EVIDENCE.md)
 - [Threat model](docs/THREAT_MODEL.md)
 - [Production readiness and Azure fit-gap](docs/PRODUCTION_READINESS.md)
 - [Enterprise agent capability matrix](docs/CAPABILITY_MATRIX.md)
@@ -130,8 +130,8 @@ model:
 For the included synthetic dataset and tests, PolicyFlow demonstrates a bounded
 multi-agent service workflow with governed retrieval, allowlisted tools, scoped memory,
 separation of duties, bilingual output, observable control points, and idempotent
-human-approved action dispatch. After a successful AWS launch and evidence capture, it
-also supports the precise claim that you deployed a containerized FastAPI/LangGraph
+human-approved action dispatch. Its verified AWS launch and evidence capture also support
+the precise claim that you deployed a containerized FastAPI/LangGraph
 service on ECS Fargate with HTTPS, monitoring, secrets, IAM, rollback, and GitHub Actions.
 It remains portfolio evidence—not insurance production experience, business approval,
 or proof of model quality.

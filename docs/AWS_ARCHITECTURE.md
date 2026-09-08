@@ -1,7 +1,7 @@
 # AWS deployment architecture
 
-Status: deployable CloudFormation reference; update this heading with the deployment date
-and evidence link only after the live verification gate passes.
+Status: deployed and verified in `ca-central-1` on 2026-09-08. See the
+[deployment evidence](AWS_DEPLOYMENT_EVIDENCE.md).
 
 ```mermaid
 flowchart LR
