@@ -23,7 +23,7 @@ if ($LASTEXITCODE -ne 0) { throw "Authenticate GitHub CLI before running this sc
 $target = "$Owner/$Repository"
 $tempBody = Join-Path ([System.IO.Path]::GetTempPath()) ("policyflow-gh-{0}.json" -f [Guid]::NewGuid())
 try {
-    [System.IO.File]::WriteAllText($tempBody, '{"wait_timer":0}')
+    [System.IO.File]::WriteAllText($tempBody, '{}')
     gh api --method PUT "repos/$target/environments/aws-production" --input $tempBody
     if ($LASTEXITCODE -ne 0) { throw "Could not create the GitHub deployment environment." }
 }
