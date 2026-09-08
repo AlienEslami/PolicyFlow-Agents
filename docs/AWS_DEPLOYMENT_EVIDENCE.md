@@ -1,9 +1,45 @@
 # Verified AWS deployment evidence
 
 PolicyFlow Agents was deployed to AWS Canada Central on 2026-09-08. The workload remains
-synthetic-only and Bedrock is implemented but disabled in the live stack.
+synthetic-only and Bedrock is implemented but disabled in the continuously running stack.
 
-## Live release
+## Artefact-fit extension release
+
+| Evidence | Verified value |
+|---|---|
+| Public operator console | <https://d20g4ajd2f79hc.cloudfront.net/ui/> (`200`, browser-inspected) |
+| CloudFormation service stack | `UPDATE_COMPLETE` |
+| Stable ECS task definition | `policyflow-agents-prod:6` (1 desired, 1 running, 0 pending) |
+| Manually deployed source candidate | `090f1c51b704` |
+| Immutable image | `071239861872.dkr.ecr.ca-central-1.amazonaws.com/policyflow-agents-prod:090f1c51b704` |
+| Image digest | `sha256:a97214ebd07e06580c2007ffe054135b621714f8fb4f865a2115d079d38349f0` |
+| GitHub Actions verification | Pending explicit authorization to push the shared `main` branch |
+
+The extension adds the React/TypeScript operator console, a scoped MCP Streamable HTTP
+surface, model usage/latency reporting, and the S3/SQS/Lambda ingestion path. The deployed
+MCP client discovered exactly `get_claim` and `check_required_documents`, then invoked
+`get_claim` with an authorized tenant context through CloudFront. The minimum-necessary
+response omitted direct personal identifiers. A request without the bearer token returned
+`401`.
+
+The live ingestion proof created two content-addressed chunks from the frozen sample. One
+safe chunk remained available and the deliberately hostile prompt-injection-shaped chunk
+was tagged `quarantined: true`. Lambda was `Active`; ingestion-error, DLQ, CPU, target-5xx,
+and unhealthy-target alarms were all `OK`. The manifest is tracked as
+[`docs/evidence/ingestion-manifest-2026-09-08.json`](evidence/ingestion-manifest-2026-09-08.json).
+
+The post-update HTTPS gate sent 60 requests at concurrency 6: all 60 returned `200`, mean
+latency was 65.746 ms, p95 was 279.968 ms, and maximum was 286.074 ms. A separate controlled
+Bedrock evaluation made three successful Nova 2 Lite requests and is documented in
+[the Bedrock evaluation report](BEDROCK_EVALUATION.md).
+
+The stack's automatic rollbacks were also exercised during implementation: an initial S3
+notification/KMS incompatibility and an account-level Lambda reserved-concurrency limit
+both rolled back cleanly. The final design uses S3-compatible SSE-SQS and an event-source
+maximum-concurrency cap, then reached `UPDATE_COMPLETE`. This is concrete failure-recovery
+evidence rather than a claimed production incident history.
+
+## Baseline release (historical)
 
 | Evidence | Verified value |
 |---|---|
