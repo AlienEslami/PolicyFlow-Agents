@@ -344,7 +344,13 @@ Resources:
 
           def process_record(record):
               envelope = json.loads(record["body"])
-              detail = envelope["Records"][0]["s3"]
+              if envelope.get("Event") == "s3:TestEvent":
+                  print(json.dumps({"event": "s3_test_event_acknowledged"}))
+                  return
+              records = envelope.get("Records")
+              if not isinstance(records, list) or not records:
+                  raise ValueError("invalid_s3_event")
+              detail = records[0]["s3"]
               bucket = detail["bucket"]["name"]
               key = unquote_plus(detail["object"]["key"])
               if not key.startswith("incoming/") or not key.endswith(".json"):

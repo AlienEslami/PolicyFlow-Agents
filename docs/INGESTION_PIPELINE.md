@@ -20,6 +20,8 @@ Security and recovery controls include:
   `processed/*`, and its one log group.
 - Event-source maximum concurrency two, partial-batch failure reporting, 14-day logs,
   and alarms for Lambda errors and visible DLQ messages.
+- Explicit acknowledgement of S3's notification-configuration `s3:TestEvent`, whose
+  envelope intentionally differs from normal object-created events.
 
 Run the live synthetic proof after deploying the CloudFormation stack:
 

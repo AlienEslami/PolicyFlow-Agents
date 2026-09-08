@@ -48,6 +48,12 @@ deleted it. GitHub correctly failed closed before ECR or ECS mutation. The deplo
 now detects stack ownership, CloudFormation restored the provider, and the next workflow
 successfully assumed the least-privilege role and completed every release gate.
 
+The first final alarm review found S3's automatic notification-configuration `TestEvent`
+in the ingestion DLQ. The normal sample had processed successfully, but this control
+envelope intentionally has no `Records[]` field. The Lambda now explicitly acknowledges
+that event shape; the single message was redriven after the fix and the DLQ alarm returned
+to `OK`.
+
 ## Baseline release (historical)
 
 | Evidence | Verified value |
