@@ -46,15 +46,16 @@ a completed deployment rollout. CloudFormation reported both stacks as complete.
   The task role has no AWS permissions while Bedrock is disabled. The GitHub role trusts
   the exact repository/environment subject and can operate only the named delivery
   resources and pass the two task roles.
-- ECR scanning found no critical findings. A validation scan reported three high findings
+- The final deployed image's ECR scan completed with zero critical and three high findings
   in Alpine's `libuuid`/`util-linux` runtime package. They require local privileged access;
   the non-root, read-only, capability-dropped task reduces exposure, but the findings remain
   tracked residual risk until Alpine publishes the applicable package fix.
 - The `/ecs/policyflow-agents-prod` log group receives structured application and EMF
-  events through the `awslogs` driver. The `PolicyFlow` namespace exposed request count,
-  latency, and application-error metrics, while `ECS/ContainerInsights` exposed running
-  task metrics. The stack also created health, 5xx, CPU, and latency alarms plus a
-  CloudWatch dashboard.
+  events through the `awslogs` driver; a final read returned both a structured
+  `request_completed` record and its EMF latency/count record. The `PolicyFlow` namespace
+  exposed request count, latency, and application-error metrics, while
+  `ECS/ContainerInsights` exposed running task metrics. The stack also created health,
+  5xx, CPU, and latency alarms plus a CloudWatch dashboard.
 
 ## Reproduction and recovery
 
