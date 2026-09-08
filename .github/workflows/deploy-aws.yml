@@ -1,8 +1,8 @@
 name: Deploy AWS
 
 on:
-  push:
-    branches: ["main"]
+  # Production was validated on 2026-09-08. Keep redeployment available only as an
+  # explicit operator action after decommissioning; ordinary CI still runs on pushes.
   workflow_dispatch:
 
 permissions:

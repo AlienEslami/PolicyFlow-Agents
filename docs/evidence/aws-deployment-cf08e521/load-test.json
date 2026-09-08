@@ -1,0 +1,21 @@
+{
+  "concurrency": 6,
+  "duration_ms": 1323.03,
+  "error_rate": 0.0,
+  "failed_samples": [],
+  "failures": 0,
+  "latency_ms": {
+    "max": 406.135,
+    "mean": 127.666,
+    "p50": 94.692,
+    "p95": 404.59,
+    "p99": 406.135
+  },
+  "requests": 60,
+  "started_at": "2026-09-08T22:11:11.604729+00:00",
+  "status_counts": {
+    "200": 60
+  },
+  "successes": 60,
+  "url": "https://d20g4ajd2f79hc.cloudfront.net/health/live"
+}

@@ -31,7 +31,10 @@ and unhealthy-target alarms were all `OK`. The manifest is tracked as
 
 The final GitHub HTTPS gate sent 60 requests at concurrency 6: all 60 returned `200`, mean
 latency was 127.666 ms, p95 was 404.590 ms, and maximum was 406.135 ms. Its JSON artifact is
-retained as `policyflow-aws-cf08e521ef9d5d842b35c8d6b6b0402ea9a0dc4e`. The ECR scan
+retained as `policyflow-aws-cf08e521ef9d5d842b35c8d6b6b0402ea9a0dc4e`, with a durable
+repository copy at
+[`docs/evidence/aws-deployment-cf08e521/load-test.json`](evidence/aws-deployment-cf08e521/load-test.json).
+The ECR scan
 completed with zero critical and three high findings. A separate controlled Bedrock
 evaluation made three successful Nova 2 Lite requests and is documented in
 [the Bedrock evaluation report](BEDROCK_EVALUATION.md).
