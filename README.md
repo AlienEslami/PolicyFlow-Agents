@@ -8,7 +8,9 @@ risk controls, and stages an idempotent case-management action for human approva
 > Current boundary: this service uses synthetic records, an in-process workflow store,
 > deterministic CI model and embedding doubles, and a simulated downstream connector.
 > It is not connected to an insurer or authorized to adjudicate claims. The AWS profile
-> is live and its deployment evidence is recorded below.
+> was historically validated on 2026-09-08 and intentionally decommissioned later that
+> day to stop recurring charges. Its former live URL is intentionally unavailable; the
+> deployment evidence and reproducible infrastructure remain in this repository.
 
 ## What is implemented
 
@@ -128,6 +130,7 @@ model:
 - [AWS architecture](docs/AWS_ARCHITECTURE.md)
 - [AWS deployment, rollback, recovery, and cost guide](docs/AWS_OPERATIONS.md)
 - [Verified AWS deployment evidence](docs/AWS_DEPLOYMENT_EVIDENCE.md)
+- [AWS decommission audit and verification](docs/AWS_DECOMMISSION_PLAN.md)
 - [Verified Amazon Bedrock evaluation](docs/BEDROCK_EVALUATION.md)
 - [Event-driven ingestion pipeline](docs/INGESTION_PIPELINE.md)
 - [Threat model](docs/THREAT_MODEL.md)

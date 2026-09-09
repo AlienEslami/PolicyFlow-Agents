@@ -1,14 +1,33 @@
 # Verified AWS deployment evidence
 
-PolicyFlow Agents was deployed to AWS Canada Central on 2026-09-08. The workload remains
-synthetic-only and Bedrock is implemented but disabled in the continuously running stack.
+PolicyFlow Agents was deployed to AWS Canada Central on 2026-09-08. After its deployment,
+security, ingestion, Bedrock, observability, and load evidence had been preserved, it was
+intentionally decommissioned on 2026-09-08 and verified complete by 20:13 America/Toronto
+(2026-09-09 00:13 UTC) to stop recurring charges. The former live URL is intentionally
+unavailable. The workload was synthetic-only, and Bedrock was implemented but disabled in
+the former continuously running stack.
+
+## Decommission status
+
+Both CloudFormation stacks were deleted in service-first order. The ECR repository and
+images, running Fargate task, ALB, CloudFront distribution, three public IPv4 addresses,
+versioned S3 bucket, SQS queues, Lambda function, runtime secret, log groups, alarms,
+dashboard, and dedicated VPC resources were independently verified absent. The account-level
+GitHub OIDC provider was deliberately retained at no material recurring cost; its PolicyFlow
+deployment role was deleted with the service stack.
+
+ECS may temporarily return historical `INACTIVE` cluster/service records and the former
+`STOPPED` task, while CloudWatch continues to list historical metric series. These records
+have no running tasks, attached ENIs, metric publisher, or recurring compute infrastructure.
+The exact pre-delete inventory, execution record, and post-delete audit are in
+[the decommission report](AWS_DECOMMISSION_PLAN.md).
 
 ## Artefact-fit extension release
 
 | Evidence | Verified value |
 |---|---|
-| Public operator console | <https://d20g4ajd2f79hc.cloudfront.net/ui/> (`200`, browser-inspected) |
-| CloudFormation service stack | `UPDATE_COMPLETE` |
+| Former public operator console | `https://d20g4ajd2f79hc.cloudfront.net/ui/` (historically `200`; intentionally unavailable after decommission) |
+| CloudFormation service stack | Historically `UPDATE_COMPLETE`; subsequently deleted |
 | Stable ECS task definition | `policyflow-agents-prod:8` (1 desired, 1 running, 0 pending) |
 | Deployed source revision | `cf08e521ef9d5d842b35c8d6b6b0402ea9a0dc4e` |
 | Immutable image | `071239861872.dkr.ecr.ca-central-1.amazonaws.com/policyflow-agents-prod:cf08e521ef9d5d842b35c8d6b6b0402ea9a0dc4e` |
@@ -113,9 +132,10 @@ a completed deployment rollout. CloudFormation reported both stacks as complete.
 
 ## Reproduction and recovery
 
-The deployment is reproducible through `.github/workflows/deploy-aws.yml` and the two
-CloudFormation templates under `infra/aws`. Automatic rollback uses the ECS deployment
-circuit breaker. Manual rollback and failure-specific recovery steps are documented in
+The deployment remains manually reproducible through `.github/workflows/deploy-aws.yml`
+and the two CloudFormation templates under `infra/aws`; automatic deployment on pushes is
+disabled after decommissioning. Automatic rollback uses the ECS deployment circuit breaker.
+Manual rollback and failure-specific recovery steps are documented in
 [AWS operations](AWS_OPERATIONS.md); the architecture and trust boundaries are documented
 in [AWS architecture](AWS_ARCHITECTURE.md).
 

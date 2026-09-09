@@ -1,15 +1,18 @@
 # AWS decommission audit and approval plan
 
-Status: **audited and prepared; no cloud deletion has been authorized or performed**.
+Status: **approved, completed, and independently verified**.
 
 Audit date: 2026-09-08. Scope: AWS account `071239861872`, Canada Central
 (`ca-central-1`), and only the PolicyFlow production deployment.
 
-## Approval boundary
+Decommission was verified complete by 2026-09-08 20:13 America/Toronto
+(2026-09-09 00:13 UTC).
 
-The teardown must not run until the repository owner explicitly approves it after reviewing
-this inventory. The source repository, documentation, test evidence, GitHub Actions history,
-and deployment artifacts are outside the deletion scope.
+## Approval and preservation boundary
+
+The repository owner explicitly approved this inventory and plan before deletion began.
+The source repository, documentation, test evidence, GitHub Actions history, and deployment
+artifacts remained outside the deletion scope and were preserved.
 
 The final GitHub deployment load-test artifact was also downloaded before teardown to
 [`docs/evidence/aws-deployment-cf08e521/load-test.json`](evidence/aws-deployment-cf08e521/load-test.json),
@@ -105,7 +108,7 @@ repository and `aws-production` environment. No GridTwin-Ops or other role curre
 the provider. It will nevertheless be retained because doing so has no material recurring
 cost and prevents accidental damage if another project begins sharing it.
 
-## Approved execution sequence
+## Approved and executed sequence
 
 1. Commit and push the preparation changes. The AWS deployment workflow becomes manual-only;
    the ordinary `CI` workflow remains enabled for pushes and pull requests.
@@ -128,3 +131,30 @@ cost and prevents accidental damage if another project begins sharing it.
 
 Do not use forced stack deletion as the first response to a failure. Diagnose the resource,
 remove only the exact blocker, retry standard deletion, and record the result.
+
+## Post-delete verification
+
+The independent service-by-service audit found:
+
+- Both exact CloudFormation stacks absent.
+- ECS cluster and service retained only as `INACTIVE` history with zero active services,
+  zero desired tasks, zero running tasks, and zero pending tasks. The former task is
+  `STOPPED`; its attachment is `DELETED`. Task definitions `:3` and `:8` remain active as
+  nonbillable deployment metadata and do not reference a runnable image because ECR is gone.
+- No PolicyFlow load balancer, target group, ECR repository or image, VPC, subnet, ENI,
+  public address, NAT gateway, or VPC endpoint.
+- No CloudFront distribution, function, cache policy, origin-request policy, or
+  response-headers policy. The former hostname no longer resolves.
+- No ingestion S3 bucket, Lambda function or event mapping, SQS queue, runtime secret,
+  application/Lambda log group, alarm, or dashboard.
+- No PolicyFlow provisioned Bedrock throughput or custom model.
+- Historical `PolicyFlow` metric series remain discoverable in CloudWatch, but the ECS task,
+  log metric filter, log groups, and all publishers are gone, so no new datapoints can be
+  emitted. The Resource Groups Tagging API also temporarily returns stale ECS metadata;
+  direct ECS calls are authoritative and show it inactive/stopped with no billable capacity.
+- The GitHub OIDC provider remains. Its PolicyFlow IAM deployment role is absent.
+
+The teardown first installed OIDC retention and emptied both S3 versions. Two null-handling
+defects in the defensive S3 checks caused safe stops before `delete-stack`; each was fixed,
+committed, validated, and pushed before retrying. CloudFormation then deleted the service
+stack and ECR stack successfully using standard deletion; no `DELETE_FAILED` state occurred.
