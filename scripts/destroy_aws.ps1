@@ -206,15 +206,18 @@ function Clear-ExactVersionedBucket {
         }
     }
 
-    $verification = (Invoke-AwsText -Arguments @(
+    $verificationResult = Invoke-AwsText -Arguments @(
         "s3api", "list-object-versions",
         "--region", $Region,
         "--bucket", $BucketName,
-        "--query", "length(Versions || ``[]) + length(DeleteMarkers || ``[])",
-        "--output", "text"
-    )).Output.Trim()
-    if ($verification -ne "0") {
-        throw "Bucket verification found $verification remaining versions or delete markers."
+        "--output", "json"
+    )
+    $verificationInventory = $verificationResult.Output | ConvertFrom-Json
+    $remainingVersions = @($verificationInventory.Versions | Where-Object { $null -ne $_ }).Count
+    $remainingMarkers = @($verificationInventory.DeleteMarkers | Where-Object { $null -ne $_ }).Count
+    $remaining = $remainingVersions + $remainingMarkers
+    if ($remaining -ne 0) {
+        throw "Bucket verification found $remaining remaining versions or delete markers."
     }
     Write-Host "Permanently deleted $deletedCount object versions/delete markers from $BucketName."
 }
