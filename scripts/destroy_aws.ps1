@@ -194,7 +194,7 @@ function Clear-ExactVersionedBucket {
                 "--output", "json"
             )
             $deleteResponse = $deleteResult.Output | ConvertFrom-Json
-            if (@($deleteResponse.Errors).Count -gt 0) {
+            if ($null -ne $deleteResponse.Errors -and @($deleteResponse.Errors).Count -gt 0) {
                 throw "S3 returned per-object deletion errors: $($deleteResponse.Errors | ConvertTo-Json -Depth 4 -Compress)"
             }
             $deletedCount += $objects.Count
