@@ -149,3 +149,7 @@ the precise claim that you deployed a containerized FastAPI/LangGraph
 service on ECS Fargate with HTTPS, monitoring, secrets, IAM, rollback, and GitHub Actions.
 It remains portfolio evidence—not insurance production experience, business approval,
 or proof of model quality.
+
+## License
+
+Licensed under the [Apache License 2.0](LICENSE).
