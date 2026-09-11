@@ -3,7 +3,8 @@
 On 2026-09-08, PolicyFlow executed three frozen synthetic cases through Amazon Nova 2
 Lite using the `us.amazon.nova-2-lite-v1:0` cross-region inference profile from
 `ca-central-1`. This was a controlled evaluation from the authenticated development
-environment; Bedrock remains disabled in the continuously running ECS stack.
+environment. Bedrock was disabled in the then-running ECS stack, which was subsequently
+decommissioned on 2026-09-08 after the deployment evidence was preserved.
 
 | Measure | Result |
 |---|---:|

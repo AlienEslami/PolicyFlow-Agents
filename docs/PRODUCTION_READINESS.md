@@ -1,7 +1,9 @@
 # Production readiness and Azure fit-gap
 
-The repository separates what runs now from a credible Azure production target. The
-deployment files are reviewable patterns; no cloud deployment is claimed.
+The repository separates the local demonstrator from a credible Azure production target.
+The Azure deployment files are reviewable patterns and no Azure deployment is claimed. A
+separate AWS portfolio deployment was historically verified and then decommissioned; its
+evidence and current status are documented in `AWS_DEPLOYMENT_EVIDENCE.md`.
 
 | Capability | Local implementation | Production target / gap |
 |---|---|---|
@@ -33,4 +35,3 @@ deployment files are reviewable patterns; no cloud deployment is claimed.
 4. Load, chaos, timeout, retry, idempotency, tenant-isolation, and rollback tests pass.
 5. Dashboards, alerts, on-call ownership, runbooks, kill switch, and manual fallback exist.
 6. A controlled pilot proves business value without autonomous adjudication.
-

@@ -80,7 +80,7 @@ to `OK`.
 
 | Evidence | Verified value |
 |---|---|
-| Public endpoint | <https://d20g4ajd2f79hc.cloudfront.net> |
+| Former public endpoint | `https://d20g4ajd2f79hc.cloudfront.net` (intentionally unavailable) |
 | AWS region | `ca-central-1` |
 | CloudFormation stacks | `policyflow-agents-prod-ecr`, `policyflow-agents-prod-service` |
 | ECS cluster and service | `policyflow-agents-prod` |

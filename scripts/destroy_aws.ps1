@@ -10,6 +10,7 @@ $serviceStack = "policyflow-agents-prod-service"
 $bootstrapStack = "policyflow-agents-prod-ecr"
 $expectedBucket = "policyflow-agents-prod-ingestion-071239861872-ca-central-1"
 $expectedOidcProvider = "arn:aws:iam::071239861872:oidc-provider/token.actions.githubusercontent.com"
+$expectedContainerInsightsLogGroup = "/aws/ecs/containerinsights/policyflow-agents-prod/performance"
 $serviceTemplate = Join-Path (Split-Path -Parent $PSScriptRoot) "infra/aws/service.yaml"
 
 $env:AWS_DEFAULT_REGION = $Region
@@ -222,6 +223,40 @@ function Clear-ExactVersionedBucket {
     Write-Host "Permanently deleted $deletedCount object versions/delete markers from $BucketName."
 }
 
+function Test-ExactLogGroupExists {
+    param([Parameter(Mandatory = $true)][string]$LogGroupName)
+
+    $lookup = Invoke-AwsText -Arguments @(
+        "logs", "describe-log-groups",
+        "--region", $Region,
+        "--log-group-name-prefix", $LogGroupName,
+        "--query", "logGroups[?logGroupName=='$LogGroupName'].logGroupName",
+        "--output", "text"
+    )
+    return [bool]$lookup.Output.Trim()
+}
+
+function Remove-ExactContainerInsightsLogGroup {
+    if ($expectedContainerInsightsLogGroup -ne "/aws/ecs/containerinsights/policyflow-agents-prod/performance") {
+        throw "Refusing to delete an unexpected Container Insights log group."
+    }
+    if (-not (Test-ExactLogGroupExists -LogGroupName $expectedContainerInsightsLogGroup)) {
+        Write-Host "The exact Container Insights log group is already absent."
+        return
+    }
+
+    Invoke-AwsText -Arguments @(
+        "logs", "delete-log-group",
+        "--region", $Region,
+        "--log-group-name", $expectedContainerInsightsLogGroup
+    ) | Out-Null
+
+    if (Test-ExactLogGroupExists -LogGroupName $expectedContainerInsightsLogGroup) {
+        throw "Post-delete verification still found $expectedContainerInsightsLogGroup."
+    }
+    Write-Host "Deleted exact Container Insights log group $expectedContainerInsightsLogGroup."
+}
+
 $identityResult = Invoke-AwsText -Arguments @("sts", "get-caller-identity", "--region", $Region, "--output", "json")
 $identity = $identityResult.Output | ConvertFrom-Json
 if ([string]$identity.Account -ne $expectedAccountId) {
@@ -230,8 +265,9 @@ if ([string]$identity.Account -ne $expectedAccountId) {
 
 $service = Get-Stack -StackName $serviceStack
 $bootstrap = Get-Stack -StackName $bootstrapStack
-if ($null -eq $service -and $null -eq $bootstrap) {
-    Write-Output "Both exact PolicyFlow stacks are already absent. No deletion was attempted."
+$containerInsightsLogGroupExists = Test-ExactLogGroupExists -LogGroupName $expectedContainerInsightsLogGroup
+if ($null -eq $service -and $null -eq $bootstrap -and -not $containerInsightsLogGroupExists) {
+    Write-Output "Both exact PolicyFlow stacks and the exact Container Insights log group are already absent. No deletion was attempted."
     return
 }
 if ($null -ne $service -and [string]$service.StackStatus -notin @("UPDATE_COMPLETE", "DELETE_FAILED")) {
@@ -251,7 +287,7 @@ if ($null -ne $service) {
 $target = "AWS account $expectedAccountId; $serviceStack then $bootstrapStack; region $Region"
 if ($PSCmdlet.ShouldProcess(
     $target,
-    "Permanently empty the exact versioned ingestion bucket and delete the PolicyFlow production stacks while retaining the GitHub OIDC provider"
+    "Permanently empty the exact versioned ingestion bucket, delete the PolicyFlow production stacks, and remove the exact Container Insights log group while retaining the GitHub OIDC provider"
 )) {
     if ($null -ne $service) {
         if ([string]$service.StackStatus -eq "DELETE_FAILED") {
@@ -284,9 +320,11 @@ if ($PSCmdlet.ShouldProcess(
         Wait-ForStackDeletion -StackName $bootstrapStack
     }
 
+    Remove-ExactContainerInsightsLogGroup
+
     if ($null -ne (Get-Stack -StackName $serviceStack) -or $null -ne (Get-Stack -StackName $bootstrapStack)) {
         throw "Post-delete verification still found a PolicyFlow CloudFormation stack."
     }
-    Write-Output "Deleted both PolicyFlow production stacks in $Region. The GitHub OIDC provider was retained."
+    Write-Output "PolicyFlow production teardown is complete in $Region. The GitHub OIDC provider was retained."
     Write-Output "Run the documented post-delete resource audit before treating decommissioning as complete."
 }

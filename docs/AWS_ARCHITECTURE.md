@@ -1,7 +1,10 @@
 # AWS deployment architecture
 
-Status: deployed and verified in `ca-central-1` on 2026-09-08. See the
-[deployment evidence](AWS_DEPLOYMENT_EVIDENCE.md).
+Status: historically deployed and verified in `ca-central-1` on 2026-09-08, then
+intentionally decommissioned after its evidence was preserved. The diagram documents the
+validated deployment architecture; it does not represent currently running infrastructure.
+See the [deployment evidence](AWS_DEPLOYMENT_EVIDENCE.md) and
+[decommission verification](AWS_DECOMMISSION_PLAN.md).
 
 ```mermaid
 flowchart LR
@@ -25,7 +28,8 @@ flowchart LR
 
 ## Network and HTTPS
 
-The stack creates a dedicated VPC and two public subnets. One 0.25-vCPU/0.5-GB Fargate
+When deployed, the stack creates a dedicated VPC and two public subnets. One
+0.25-vCPU/0.5-GB Fargate
 task receives a public IP so it can reach ECR, CloudWatch, Secrets Manager, and optional
 Bedrock without a NAT Gateway. Its security group accepts port 8000 only from the ALB and
 allows outbound TLS only.

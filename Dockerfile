@@ -17,7 +17,8 @@ COPY pyproject.toml README.md ./
 COPY src ./src
 RUN python -m venv /opt/venv && \
     /opt/venv/bin/pip install --upgrade pip && \
-    /opt/venv/bin/pip install ".[aws]"
+    /opt/venv/bin/pip install ".[aws]" && \
+    /opt/venv/bin/pip uninstall --yes pip
 
 FROM python:3.12-alpine3.23@sha256:167bc85084c9df34480efc26b4528fb68feaa8a79183b5658952137025b6f061
 
@@ -26,7 +27,9 @@ ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
-RUN addgroup -S -g 10001 policyflow && \
+RUN apk upgrade --no-cache libuuid && \
+    python -m pip uninstall --yes pip && \
+    addgroup -S -g 10001 policyflow && \
     adduser -S -D -H -u 10001 -G policyflow policyflow
 WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
